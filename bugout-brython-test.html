@@ -11,15 +11,25 @@
 </head>
 <body onLoad="js_main()">
   <h1>Bugout Dynamo concept</h1>
+  <input id="address"></input><button id="ping">Ping</button>
   <pre id="log"></pre>
 </body>
 <script type="text/python">
 from browser import window, console, document
 print("Brython initializing...")
+
+def ping(e):
+    target_field = document.getElementById("address")
+    target_address = str(target_field.value)
+    log("Pinging " + target_address + "...")
+    b = window.b
+    b.rpc(target_address, "ping", {}, None)
+
 def python_init():
     Bugout = window.bugout_class
     b = Bugout("bugout-dynamo")
     window.b = b
+    document.getElementById("ping").bind("click", ping)
 
     log("Bugout Dynamo concept")
     log("")
@@ -70,6 +80,7 @@ function js_main() {
 
   // simple "ping" rpc call
   b.register("ping", function(address, args, cb) {
+    log("Pinged by " + address);
     args["pong"] = Math.random();
     cb(args);
   });
