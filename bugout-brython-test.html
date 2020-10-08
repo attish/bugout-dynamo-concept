@@ -12,24 +12,56 @@
 <body onLoad="js_main()">
   <h1>Bugout Dynamo concept</h1>
   <input id="address"></input><button id="ping">Ping</button>
+  <h2>Peers:</h2>
+  <pre id="peers"></pre>
+  <h2>Log:</h2>
   <pre id="log"></pre>
 </body>
 <script type="text/python">
 from browser import window, console, document
 print("Brython initializing...")
+TIMEOUT = 10000
+HEARTBEAT = 5000
+peers = []
 
-def ping(e):
+def ping_button(e):
     target_field = document.getElementById("address")
     target_address = str(target_field.value)
     log("Pinging " + target_address + "...")
     b = window.b
     b.rpc(target_address, "ping", {}, None)
 
+def seen(addr):
+    log("seen: " + addr)
+    peers.append(addr)
+    peers_pre = document.getElementById("peers")
+    peers_pre.text = '\n'.join(peers)
+
+def left(addr):
+    log("left: " + addr)
+    peers.remove(addr)
+    peers_pre = document.getElementById("peers")
+    peers_pre.text = '\n'.join(peers)
+
+def timeout(addr):
+    log("timeout: " + addr)
+    peers.remove(addr)
+    peers_pre = document.getElementById("peers")
+    peers_pre.text = '\n'.join(peers)
+
+def ping(addr, args, cb):
+    log("pinged by: " + addr);
+
 def python_init():
     Bugout = window.bugout_class
-    b = Bugout("bugout-dynamo")
+    b = Bugout("bugout-dynamo", {"timeout": TIMEOUT})
     window.b = b
-    document.getElementById("ping").bind("click", ping)
+    document.getElementById("ping").bind("click", ping_button)
+    b.on("seen", seen)
+    b.on("timeout", timeout)
+    b.on("left", left)
+    b.register("ping", ping)
+    b.heartbeat(HEARTBEAT)
 
     log("Bugout Dynamo concept")
     log("")
@@ -79,11 +111,11 @@ function js_main() {
   /*** rpc calls ***/
 
   // simple "ping" rpc call
-  b.register("ping", function(address, args, cb) {
-    log("Pinged by " + address);
-    args["pong"] = Math.random();
-    cb(args);
-  });
+  //b.register("ping", function(address, args, cb) {
+  //  log("Pinged by " + address);
+  //  args["pong"] = Math.random();
+  //  cb(args);
+  //});
 
   /*** messageboard server API ***/
 
@@ -112,17 +144,17 @@ function js_main() {
   b.on("connections", function(c) {
     if (c == 0 && connected == false) {
       connected = true;
-      log("ready");
+      log("Connected to the network.");
       // link to the messageboard client URL
-      var clientURL = document.location.href.replace("-server", "") + "#" + b.address();
+      //var clientURL = document.location.href.replace("-server", "") + "#" + b.address();
       // qrcode for the client URL
       //if (window.innerWidth > 600) {
       //  log(qr(clientURL));
       //} else {
       //  log();
       //}
-      log(clientURL + "\n");
-      log("Connect back to this server-in-a-tab using the link above.");
+      //log(clientURL + "\n");
+      //log("Connect back to this server-in-a-tab using the link above.");
     };
     log("connections: " + c);
   });
@@ -134,7 +166,7 @@ function js_main() {
   b.on("rpc", function(address, call, args) { log("rpc: " + address + " " + call + " " + args); });
 
   // log when we see a new client address
-  b.on("seen", function(address) { log("seen: " + address); });
+  //b.on("seen", function(address) { log("seen: " + address); });
 }
 
   // simple logging function
@@ -148,6 +180,8 @@ function js_main() {
 </script>
 <style>
   body { background-color: #fff; }
-  pre { width:30em; padding:3em; background-color:#333; color: #eee; white-space: pre-wrap; word-wrap: break-word; line-height: 1em; }
+  pre { width:30em; padding:3em; white-space: pre-wrap; word-wrap: break-word; line-height: 1em; }
+  #log { background-color:#333; color: #eee; }
+  #peers { background-color:#eee; color:#222; }
 </style>
 </html>
