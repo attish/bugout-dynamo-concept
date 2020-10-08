@@ -13,6 +13,8 @@
 <script type="text/python">
 from browser import window, console, document
 print("Brython initializing...")
+Bugout = window.bugout_class
+window.b = Bugout("bugout-dynamo")
 
 def log(msg):
     document.getElementById("log").textContent += msg + "\n"
@@ -22,6 +24,8 @@ window.log = log
 </script>
 <script>
 function js_main() {
+  // Make Bugout accessible to Brython
+  window.bugout_class = Bugout
   brython()
   console.log("Javascript code running...")
   //log = log_js
@@ -31,7 +35,7 @@ function js_main() {
 
   // instantiate our bugout instance
   //var b = new Bugout({seed: localStorage["bugout-messageboard-seed"]});
-  var b = new Bugout("bugout-dynamo");
+  //var b = new Bugout("bugout-dynamo");
   log(b.seed);
   
   // bV8KUPQ7Gj7LmeEt3nqXsdp6oKneaBnBee
