@@ -9,16 +9,28 @@
   <script src="https://cdn.jsdelivr.net/npm/brython@3.8.10/brython.min.js">
 </script>
 </head>
-<body onLoad="js_main()"><pre id="log"></pre></body>
+<body onLoad="js_main()">
+  <h1>Bugout Dynamo concept</h1>
+  <pre id="log"></pre>
+</body>
 <script type="text/python">
 from browser import window, console, document
 print("Brython initializing...")
-Bugout = window.bugout_class
-window.b = Bugout("bugout-dynamo")
+def python_init():
+    Bugout = window.bugout_class
+    b = Bugout("bugout-dynamo")
+    window.b = b
+
+    log("Bugout Dynamo concept")
+    log("")
+    log("My seed is: " + b.seed)
+    log("My address is: " + b.address())
+
 
 def log(msg):
     document.getElementById("log").textContent += msg + "\n"
     
+python_init()
 # Export functions to JS namespace
 window.log = log
 </script>
@@ -29,30 +41,30 @@ function js_main() {
   brython()
   console.log("Javascript code running...")
   //log = log_js
-  log("*BUGOUT*");
-  log("\nmessageboard server\n");
-  log("(view source to see the server code)\n");
+  //log("*BUGOUT*");
+  //log("\nmessageboard server\n");
+  //log("(view source to see the server code)\n");
 
   // instantiate our bugout instance
   //var b = new Bugout({seed: localStorage["bugout-messageboard-seed"]});
   //var b = new Bugout("bugout-dynamo");
-  log(b.seed);
+  //log(b.seed);
   
   // bV8KUPQ7Gj7LmeEt3nqXsdp6oKneaBnBee
   // save the seed for next time
   //localStorage["bugout-messageboard-seed"] = b.seed;
 
   // log this server's address
-  log("address: " + b.address());
-  log("announcing...");
+  //log("address: " + b.address());
+  //log("announcing...");
   
   // load messages from previous run
   //if (localStorage["bugout-messageboard"]) {
   //  messages = JSON.parse(localStorage["bugout-messageboard"]);
   //}
-  if (typeof(messages) != "object" || !messages["length"]) {
-    messages = [];
-  }
+  //if (typeof(messages) != "object" || !messages["length"]) {
+  //  messages = [];
+  //}
 
   /*** rpc calls ***/
 
@@ -64,23 +76,23 @@ function js_main() {
 
   /*** messageboard server API ***/
 
-  b.register("post", function(address, message, cb) {
-    if (typeof(message) == "string" && message.length < 280) {
-      var m = {address: address, m: message, t: (new Date()).getTime()};
-      log("messageboard:", m);
-      messages.push(m);
-      messages = messages.slice(Math.max(0, messages.length - 10));
-      //localStorage["bugout-messageboard"] = JSON.stringify(messages);
-      cb(true);
-      b.send("refresh");
-    } else {
-      cb(false);
-    }
-  }, "Post a message to the board");
+  //b.register("post", function(address, message, cb) {
+  //  if (typeof(message) == "string" && message.length < 280) {
+  //    var m = {address: address, m: message, t: (new Date()).getTime()};
+  //    log("messageboard:", m);
+  //    messages.push(m);
+  //    messages = messages.slice(Math.max(0, messages.length - 10));
+  //    //localStorage["bugout-messageboard"] = JSON.stringify(messages);
+  //    cb(true);
+  //    b.send("refresh");
+  //  } else {
+  //    cb(false);
+  //  }
+  //}, "Post a message to the board");
 
-  b.register("list", function(address, args, cb) {
-    cb(messages.slice().reverse());
-  }, "List most recent messages");
+  //b.register("list", function(address, args, cb) {
+  //  cb(messages.slice().reverse());
+  //}, "List most recent messages");
 
   /*** logging ***/
 
@@ -124,7 +136,7 @@ function js_main() {
 
 </script>
 <style>
-  body { background-color: #333; }
-  pre { color: #eee; white-space: pre-wrap; word-wrap: break-word; line-height: 1em; }
+  body { background-color: #fff; }
+  pre { width:30em; padding:3em; background-color:#333; color: #eee; white-space: pre-wrap; word-wrap: break-word; line-height: 1em; }
 </style>
 </html>
