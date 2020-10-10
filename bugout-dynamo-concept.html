@@ -3,9 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta content="width=device-width, initial-scale=1" name="viewport">
-  <title>Bugout dynamo concept</title>
+  <title>Bugout Dynamo concept</title>
   <script src="https://chr15m.github.io/bugout/bugout.min.js"></script>
-  <script src="//cdn.jsdelivr.net/npm/qrcode@latest/build/qrcode.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/brython@3.8.10/brython.min.js">
 </script>
 </head>
@@ -29,7 +28,7 @@ def ping_button(e):
     target_address = str(target_field.value)
     log("Pinging " + target_address + "...")
     b = window.b
-    b.rpc(target_address, "ping", {}, None)
+    b.rpc(target_address, "ping", {}, lambda x: log("ok!"))
 
 def seen(addr):
     log("seen: " + addr)
@@ -39,7 +38,9 @@ def seen(addr):
 
 def left(addr):
     log("left: " + addr)
-    peers.remove(addr)
+    try:
+        peers.remove(addr)
+    except Exception as e: pass
     peers_pre = document.getElementById("peers")
     peers_pre.text = '\n'.join(peers)
 
@@ -50,7 +51,26 @@ def timeout(addr):
     peers_pre.text = '\n'.join(peers)
 
 def ping(addr, args, cb):
-    log("pinged by: " + addr);
+    log("pinged by: " + addr)
+    #cb()
+
+def connections(c):
+    global connected
+    if c == 0 and connected == False:
+      connected = True
+      log("Connected to the network.")
+    log("connections: " + str(c))
+
+def message(addr, msg):
+    log("message: " + address + " " + msg)
+
+def rpc(address, call, args, x):
+    try:
+        log("rpc: " + str(address) + " " + str(call) + " " + str(args) + " " + str(x))
+    except Exception as e:
+        log("!!! Exception in rpc: " + str(e))
+    for arg in args:
+        log(arg)
 
 def python_init():
     Bugout = window.bugout_class
@@ -60,7 +80,9 @@ def python_init():
     b.on("seen", seen)
     b.on("timeout", timeout)
     b.on("left", left)
-    b.register("ping", ping)
+    b.on("connections", connections)
+    #b.on("rpc", rpc)
+    #b.register("ping", ping)
     b.heartbeat(HEARTBEAT)
 
     log("Bugout Dynamo concept")
@@ -72,6 +94,7 @@ def python_init():
 def log(msg):
     document.getElementById("log").textContent += msg + "\n"
     
+connected = False
 python_init()
 # Export functions to JS namespace
 window.log = log
@@ -80,103 +103,15 @@ window.log = log
 function js_main() {
   // Make Bugout accessible to Brython
   window.bugout_class = Bugout
+  // Perform Brython initialization
   brython()
-  console.log("Javascript code running...")
-  //log = log_js
-  //log("*BUGOUT*");
-  //log("\nmessageboard server\n");
-  //log("(view source to see the server code)\n");
-
-  // instantiate our bugout instance
-  //var b = new Bugout({seed: localStorage["bugout-messageboard-seed"]});
-  //var b = new Bugout("bugout-dynamo");
-  //log(b.seed);
-  
-  // bV8KUPQ7Gj7LmeEt3nqXsdp6oKneaBnBee
-  // save the seed for next time
-  //localStorage["bugout-messageboard-seed"] = b.seed;
-
-  // log this server's address
-  //log("address: " + b.address());
-  //log("announcing...");
-  
-  // load messages from previous run
-  //if (localStorage["bugout-messageboard"]) {
-  //  messages = JSON.parse(localStorage["bugout-messageboard"]);
-  //}
-  //if (typeof(messages) != "object" || !messages["length"]) {
-  //  messages = [];
-  //}
-
-  /*** rpc calls ***/
-
-  // simple "ping" rpc call
-  //b.register("ping", function(address, args, cb) {
-  //  log("Pinged by " + address);
-  //  args["pong"] = Math.random();
-  //  cb(args);
-  //});
-
-  /*** messageboard server API ***/
-
-  //b.register("post", function(address, message, cb) {
-  //  if (typeof(message) == "string" && message.length < 280) {
-  //    var m = {address: address, m: message, t: (new Date()).getTime()};
-  //    log("messageboard:", m);
-  //    messages.push(m);
-  //    messages = messages.slice(Math.max(0, messages.length - 10));
-  //    //localStorage["bugout-messageboard"] = JSON.stringify(messages);
-  //    cb(true);
-  //    b.send("refresh");
-  //  } else {
-  //    cb(false);
-  //  }
-  //}, "Post a message to the board");
-
-  //b.register("list", function(address, args, cb) {
-  //  cb(messages.slice().reverse());
-  //}, "List most recent messages");
-
-  /*** logging ***/
-
-  // log when network connectivity changes
-  var connected = false;
-  b.on("connections", function(c) {
-    if (c == 0 && connected == false) {
-      connected = true;
-      log("Connected to the network.");
-      // link to the messageboard client URL
-      //var clientURL = document.location.href.replace("-server", "") + "#" + b.address();
-      // qrcode for the client URL
-      //if (window.innerWidth > 600) {
-      //  log(qr(clientURL));
-      //} else {
-      //  log();
-      //}
-      //log(clientURL + "\n");
-      //log("Connect back to this server-in-a-tab using the link above.");
-    };
-    log("connections: " + c);
-  });
-
-  // log when a client sends a message
-  b.on("message", function(address, msg) { log("message: " + address + msg); });
-
-  // log when a client makes an rpc call
   b.on("rpc", function(address, call, args) { log("rpc: " + address + " " + call + " " + args); });
-
-  // log when we see a new client address
-  //b.on("seen", function(address) { log("seen: " + address); });
+  b.register("ping", function(address, args, cb) {
+    log("Pinged by " + address);
+    args["pong"] = Math.random();
+    cb(args);
+  });
 }
-
-  // simple logging function
-  function log_js() {
-    var args = Array.prototype.slice.call(arguments);
-    console.log.apply(null, args);
-    args = args.map(function(a) { if (typeof(a) == "string") return a; else return JSON.stringify(a); });
-    document.getElementById("log").textContent += args.join(" ") + "\n";
-  }
-
 </script>
 <style>
   body { background-color: #fff; }
