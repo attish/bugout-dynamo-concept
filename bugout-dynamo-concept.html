@@ -17,7 +17,8 @@
   <pre id="log"></pre>
 </body>
 <script type="text/python">
-from browser import window, console, document
+from browser import window, console, document 
+
 print("Brython initializing...")
 TIMEOUT = 10000
 HEARTBEAT = 5000
@@ -26,9 +27,10 @@ peers = []
 def ping_button(e):
     target_field = document.getElementById("address")
     target_address = str(target_field.value)
-    log("Pinging " + target_address + "...")
+    randnum = int(window.Math.random() * 100)
+    log("Pinging " + target_address + " with " + str(randnum) + "..." )
     b = window.b
-    b.rpc(target_address, "ping", {}, lambda x: log("ok!"))
+    b.rpc(target_address, "ping", {"num": randnum}, lambda x: log("ok, received: " + str(x["num"])))
 
 def seen(addr):
     log("seen: " + addr)
@@ -52,7 +54,10 @@ def timeout(addr):
 
 def ping(addr, args, cb):
     log("pinged by: " + addr)
-    #cb()
+    log("Received arg num: " + str(args["num"]))
+    args["num"] = args["num"] ** 2
+    log("Returning: " + str(args["num"]))
+    window.call_js_function(cb, args)
 
 def connections(c):
     global connected
@@ -81,8 +86,8 @@ def python_init():
     b.on("timeout", timeout)
     b.on("left", left)
     b.on("connections", connections)
-    #b.on("rpc", rpc)
-    #b.register("ping", ping)
+    b.on("rpc", rpc)
+    b.register("ping", ping)
     b.heartbeat(HEARTBEAT)
 
     log("Bugout Dynamo concept")
@@ -100,17 +105,16 @@ python_init()
 window.log = log
 </script>
 <script>
+function call_js_function(fn, args) {
+    return fn(args)
+}
+
 function js_main() {
   // Make Bugout accessible to Brython
   window.bugout_class = Bugout
+  window.call_js_function = call_js_function
   // Perform Brython initialization
   brython()
-  b.on("rpc", function(address, call, args) { log("rpc: " + address + " " + call + " " + args); });
-  b.register("ping", function(address, args, cb) {
-    log("Pinged by " + address);
-    args["pong"] = Math.random();
-    cb(args);
-  });
 }
 </script>
 <style>
