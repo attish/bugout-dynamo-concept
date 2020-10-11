@@ -5,24 +5,31 @@
   <meta content="width=device-width, initial-scale=1" name="viewport">
   <title>Bugout Dynamo concept</title>
   <script src="https://chr15m.github.io/bugout/bugout.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/brython@3.8.10/brython.min.js">
-</script>
+  <script src="https://cdn.jsdelivr.net/npm/brython@3.8.10/brython.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.0.0/crypto-js.min.js"></script>
 </head>
 <body onLoad="js_main()">
   <h1>Bugout Dynamo concept</h1>
   <input id="address"></input><button id="ping">Ping</button>
+  <h2>Visualization:</h2>
+    <canvas id="visual" width="300" height="300" style="border-color:#000;border-style:none;border-width:1px;margin-left:5em;"></canvas>
   <h2>Peers:</h2>
   <pre id="peers"></pre>
   <h2>Log:</h2>
   <pre id="log"></pre>
 </body>
 <script type="text/python">
-from browser import window, console, document 
+from browser import window, console, document
 
 print("Brython initializing...")
-TIMEOUT = 10000
-HEARTBEAT = 5000
+TIMEOUT = 60000
+HEARTBEAT = 30000
+CANVAS_SIZE = document.getElementById("visual").width
 peers = []
+pi = 3.141596
+
+CryptoJS = window.CryptoJS
+
 
 def ping_button(e):
     target_field = document.getElementById("address")
@@ -37,6 +44,7 @@ def seen(addr):
     peers.append(addr)
     peers_pre = document.getElementById("peers")
     peers_pre.text = '\n'.join(peers)
+    redraw_visualization()
 
 def left(addr):
     log("left: " + addr)
@@ -45,12 +53,14 @@ def left(addr):
     except Exception as e: pass
     peers_pre = document.getElementById("peers")
     peers_pre.text = '\n'.join(peers)
+    redraw_visualization()
 
 def timeout(addr):
     log("timeout: " + addr)
     peers.remove(addr)
     peers_pre = document.getElementById("peers")
     peers_pre.text = '\n'.join(peers)
+    redraw_visualization()
 
 def ping(addr, args, cb):
     log("pinged by: " + addr)
@@ -77,6 +87,41 @@ def rpc(address, call, args, x):
     for arg in args:
         log(arg)
 
+def sha1(msg):
+    sha1_obj = CryptoJS.SHA1(msg)
+    sha1_str = sha1_obj.toString(CryptoJS.enc.Hex)
+    return sha1_str
+
+def redraw_visualization():
+    b = window.b
+    visual = document.getElementById("visual")
+    ctx = visual.getContext("2d")
+    ctx.clearRect(0, 0, visual.width, visual.height)
+    all_peers = list(peers)
+    all_peers.append(b.address())
+    hashed_peers = [sha1(addr) for addr in all_peers]
+    hashed_peers.sort()
+    log(str(all_peers))
+    log(str(hashed_peers))
+    last_peer_hash = hashed_peers[-1]
+    angle_prev = int(last_peer_hash[0:4], 16)*2*pi/65536
+    for hash in hashed_peers:
+        angle_this = int(hash[0:4], 16)*2*pi/65536
+        log(str(angle_this))
+        ctx.beginPath()
+        if hash == sha1(b.address()):
+            ctx.lineWidth = 10;
+        else:
+            ctx.lineWidth = 5;
+        ctx.strokeStyle = "#" + hash[0:6];
+        if angle_this == angle_prev:
+            # there is only a single node, draw a full circle
+            ctx.arc(CANVAS_SIZE/2, CANVAS_SIZE/2, CANVAS_SIZE/2*0.75, 0, 2*pi)
+        else:
+            ctx.arc(CANVAS_SIZE/2, CANVAS_SIZE/2, CANVAS_SIZE/2*0.75, angle_prev, angle_this)
+        ctx.stroke()
+        angle_prev = angle_this
+
 def python_init():
     Bugout = window.bugout_class
     b = Bugout("bugout-dynamo", {"timeout": TIMEOUT})
@@ -94,6 +139,8 @@ def python_init():
     log("")
     log("My seed is: " + b.seed)
     log("My address is: " + b.address())
+
+    redraw_visualization()
 
 
 def log(msg):
