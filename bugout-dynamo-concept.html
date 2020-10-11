@@ -22,8 +22,8 @@
 from browser import window, console, document
 
 print("Brython initializing...")
-TIMEOUT = 60000
-HEARTBEAT = 30000
+TIMEOUT = 10000
+HEARTBEAT = 5000
 CANVAS_SIZE = document.getElementById("visual").width
 peers = []
 pi = 3.141596
@@ -39,11 +39,14 @@ def ping_button(e):
     b = window.b
     b.rpc(target_address, "ping", {"num": randnum}, lambda x: log("ok, received: " + str(x["num"])))
 
+def refresh_peers_list():
+    peers_pre = document.getElementById("peers")
+    peers_pre.text = '\n'.join(peers)
+
 def seen(addr):
     log("seen: " + addr)
     peers.append(addr)
-    peers_pre = document.getElementById("peers")
-    peers_pre.text = '\n'.join(peers)
+    refresh_peers_list()
     redraw_visualization()
 
 def left(addr):
@@ -51,15 +54,13 @@ def left(addr):
     try:
         peers.remove(addr)
     except Exception as e: pass
-    peers_pre = document.getElementById("peers")
-    peers_pre.text = '\n'.join(peers)
+    refresh_peers_list()
     redraw_visualization()
 
 def timeout(addr):
     log("timeout: " + addr)
     peers.remove(addr)
-    peers_pre = document.getElementById("peers")
-    peers_pre.text = '\n'.join(peers)
+    refresh_peers_list()
     redraw_visualization()
 
 def ping(addr, args, cb):
@@ -98,7 +99,6 @@ def redraw_visualization():
     ctx = visual.getContext("2d")
     ctx.clearRect(0, 0, visual.width, visual.height)
     all_peers = list(peers)
-    all_peers.append(b.address())
     hashed_peers = [sha1(addr) for addr in all_peers]
     hashed_peers.sort()
     log(str(all_peers))
@@ -140,6 +140,8 @@ def python_init():
     log("My seed is: " + b.seed)
     log("My address is: " + b.address())
 
+    peers.append(b.address())
+    refresh_peers_list()
     redraw_visualization()
 
 
