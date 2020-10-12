@@ -139,9 +139,29 @@ def getput_button(e):
     sorted_vnodes = sorted(vnodes, key=lambda x: x[0])
     target_vnode, target_node = sorted_vnodes[n]
     if val == "":
-        # read operation
         log("Reading operation initiated: " + key + " => ?")
-        log("Not yet implemented!")
+        # are we the responsible node?
+        if target_node == b.address():
+            # yes -- read locally
+            try:
+                val = local_kv_store[key]
+                document.getElementById("value").value = val
+                log("Value found locally: " + str(val))
+            except KeyError:
+                log("Key not found in local storage!")
+        else:
+            # no -- send an RPC to the target node to request the value
+            log("Sending retrieve RPC to target node " + target_node)
+            success = 0
+            val = ""
+            def result_callback(x):
+                success = str(x["success"])
+                val = str(x["val"])
+                log("In callback, success:" + str(x["success"]) + ", value: " + str(x["val"]))
+                document.getElementById("value").value = val
+                return success
+                
+            b.rpc(target_node, "retrieve", {"key": key}, result_callback)
     else:
         log("Storing operation initiated: " + key + " => " + val)
         # are we the responsible node?
@@ -152,12 +172,11 @@ def getput_button(e):
             log("Stored locally.")
             redraw_visualization()
         else:
-            # send an RPC to the target node to remember the key-value pair
+            # no -- send an RPC to the target node to remember the key-value pair
             log("Sending store RPC to target node " + target_node)
             b.rpc(target_node,
                   "store",
                   {"key": key, "val": val},
-                  #lambda x: log("Stored on target node: " + str(x["addr"]))
                   lambda x: log("Stored on target node.")
             )
 
@@ -199,6 +218,21 @@ def ping(addr, args, cb):
     log("Received arg num: " + str(args["num"]))
     args["num"] = args["num"] ** 2
     log("Returning: " + str(args["num"]))
+    window.call_js_function(cb, args)
+
+def retrieve(addr, args, cb):
+    log("retrieve request by: " + addr)
+    key = args["key"]
+    log("Requested key: " + key)
+    try:
+        val = local_kv_store[key]
+        success = 1
+    except KeyError:
+        val = ""
+        success = 0
+    args["val"] = val
+    args["success"] = success
+    log("Success: " + str(success) + ", value: " + str(val))
     window.call_js_function(cb, args)
 
 def store(addr, args, cb):
@@ -302,6 +336,7 @@ def python_init():
     b.on("rpc", rpc)
     b.register("ping", ping)
     b.register("store", store)
+    b.register("retrieve", retrieve)
     b.heartbeat(HEARTBEAT)
 
     log("Bugout Dynamo concept")
