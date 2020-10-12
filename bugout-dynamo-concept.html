@@ -10,11 +10,28 @@
 </head>
 <body onLoad="js_main()">
   <h1>Bugout Dynamo concept</h1>
-  <input id="address"></input><button id="ping">Ping</button>
+  Key:&nbsp;<input id="key"></input>&nbsp;Value:&nbsp;<input id="value">&nbsp;<button id="getput">Get/Put</button>
   <h2>Visualization:</h2>
     <canvas id="visual" width="300" height="300" style="border-color:#000;border-style:none;border-width:1px;margin-left:5em;"></canvas>
-  <h2>Peers:</h2>
-  <pre id="peers"></pre>
+  <table>
+    <tr>
+      <td>
+        <h2>Peers:</h2>
+        <input id="address"></input><button id="ping">Ping</button>
+      </td>
+      <td>
+        <h2>Key-value store:</h2>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <pre id="peers"></pre>
+      </td>
+      <td>
+        <pre id="kvstore"></pre>
+      </td>
+    </tr>
+  </table>
   <h2>Log:</h2>
   <pre id="log"></pre>
 </body>
@@ -28,6 +45,7 @@ CANVAS_SIZE = document.getElementById("visual").width
 VNODE_PER_NODE = 16
 peers = []
 vnodes = []
+local_kv_store = {}
 
 # NOTE: structure of vnodes list:
 # [("vnode1","nodeaddr1"),("vnode2","nodeaddr1"),("vnode3","nodeaddr2")...]
@@ -72,9 +90,84 @@ def ping_button(e):
     b = window.b
     b.rpc(target_address, "ping", {"num": randnum}, lambda x: log("ok, received: " + str(x["num"])))
 
+def vnode_for_key(key):
+    hashed_key = sha1(key)
+    #log("Hash of key '" + key + "' is " + hashed_key)
+    sorted_vnodes = sorted(vnodes, key=lambda x: x[0])
+    #log("Sorted list of vnodes:")
+    #log(str(sorted_vnodes))
+    #for n,vnode in enumerate(vnodes):
+    #    log("#" + str(n) + ": " + str(vnode))
+    # First, find the relevant node
+    # TODO This could be optimized by binary search    
+    # Now we search for the vnode that is responsible for our key.
+    # A vnode is responsible for all keys larger than its hash, but smaller
+    # than the next one. However, due to the circular nature of the keyspace,
+    # there might be marginal cases to consider.
+    # 1. Is the hashed key smaller than the first vnode hash? If yes, this key
+    # belongs to the last vnode (that is, n = len(vnodes)-1)
+    # 2. Then, one by one, look if the key is less than the next vnode(n+1)'s
+    # hash. If yes, n is the index of the vnode we are looking for.
+    # 3. However, if n reaches the end of the vnode list (n == len(vnodes)-1),
+    # that means that we found a key that belongs to the last vnode; however,
+    # we have to avoid trying to look into vnodes[n+1], since that would be
+    # beyond the end of the list.
+    # Which means that the segment between the last and the first vnode (which
+    # includes the zero point) is handled in two parts, in cases 1 and 3.
+    #log("First vnode is " + sorted_vnodes[0][0])
+    if hashed_key < sorted_vnodes[0][0]:
+        #log("...which is more than the keyhash!")
+        n = len(sorted_vnodes)-1
+    else:
+        #log("Doing normal search...")
+        n = 0
+        while hashed_key > sorted_vnodes[n+1][0]:
+            n += 1
+            if n == len(sorted_vnodes)-1:
+                break
+    #log("Search ended, n==" + str(n))
+    #log("Target node is: " + str(sorted_vnodes[n]))
+    return n
+
+def getput_button(e):
+    b = window.b
+    key = document.getElementById("key").value
+    val = document.getElementById("value").value
+    # The loop ended, that is, n now holds the index of the vnode that handles
+    # the key.
+    n = vnode_for_key(key)
+    sorted_vnodes = sorted(vnodes, key=lambda x: x[0])
+    target_vnode, target_node = sorted_vnodes[n]
+    if val == "":
+        # read operation
+        log("Reading operation initiated: " + key + " => ?")
+        log("Not yet implemented!")
+    else:
+        log("Storing operation initiated: " + key + " => " + val)
+        # are we the responsible node?
+        if target_node == b.address():
+            # yes -- handle the storage locally
+            local_kv_store[key] = val
+            refresh_kv_store()
+            log("Stored locally.")
+            redraw_visualization()
+        else:
+            # send an RPC to the target node to remember the key-value pair
+            log("Sending store RPC to target node " + target_node)
+            b.rpc(target_node,
+                  "store",
+                  {"key": key, "val": val},
+                  #lambda x: log("Stored on target node: " + str(x["addr"]))
+                  lambda x: log("Stored on target node.")
+            )
+
 def refresh_peers_list():
     peers_pre = document.getElementById("peers")
     peers_pre.text = '\n'.join(peers)
+
+def refresh_kv_store():
+    kvstore_pre = document.getElementById("kvstore")
+    kvstore_pre.text = '\n'.join(key + " => " + val for key,val in local_kv_store.items())
 
 def seen(addr):
     log("seen: " + addr)
@@ -108,6 +201,17 @@ def ping(addr, args, cb):
     log("Returning: " + str(args["num"]))
     window.call_js_function(cb, args)
 
+def store(addr, args, cb):
+    global local_kv_store
+    key = args["key"]
+    val = args["val"]
+    log("storage request from: " + addr)
+    log("key: " + str(key) + " val: " + str(val))
+    local_kv_store[key] = val
+    redraw_visualization()
+    refresh_kv_store()
+    window.call_js_function(cb, args)
+
 def connections(c):
     global connected
     if c == 0 and connected == False:
@@ -123,13 +227,24 @@ def rpc(address, call, args, x):
         log("rpc: " + str(address) + " " + str(call) + " " + str(args) + " " + str(x))
     except Exception as e:
         log("!!! Exception in rpc: " + str(e))
-    for arg in args:
-        log(arg)
+    #for arg in args:
+    #    log(arg)
 
 def sha1(msg):
     sha1_obj = CryptoJS.SHA1(msg)
     sha1_str = sha1_obj.toString(CryptoJS.enc.Hex)
     return sha1_str
+
+def hash_to_angle(hash):
+    return int(hash[0:4], 16)*2*pi/65536
+
+def debug_marker(ctx, angle):
+    infinitesimal = 0.005*pi
+    ctx.beginPath()
+    ctx.lineWidth = 10
+    ctx.strokeStyle = "#ff0000"
+    ctx.arc(CANVAS_SIZE/2, CANVAS_SIZE/2, CANVAS_SIZE/2*0.62, angle-infinitesimal, angle+infinitesimal)
+    ctx.stroke()
 
 def redraw_visualization():
     global vnodes
@@ -140,18 +255,19 @@ def redraw_visualization():
     # sort vnode list by vnode hashes
     sorted_vnodes = sorted(vnodes, key=lambda x: x[0])
     #log("vnodes list length: " + str(len(vnodes)))
-    #log(str([i[0] for i in sorted_vnodes]))
+    #log(str([i for i in sorted_vnodes]))
     last_vnode = sorted_vnodes[-1]
-    angle_prev = int(last_vnode[0][0:4], 16)*2*pi/65536
+    angle_prev = hash_to_angle(last_vnode[0])
+    node_prev = last_vnode[1]
     for vnode,node in sorted_vnodes:
-        angle_this = int(vnode[0:4], 16)*2*pi/65536
-        #log(str(angle_this))
+        angle_this = hash_to_angle(vnode)
+        node_this = node
         ctx.beginPath()
-        if node == b.address():
-            ctx.lineWidth = 10;
+        if node_prev == b.address():
+            ctx.lineWidth = 10
         else:
-            ctx.lineWidth = 5;
-        ctx.strokeStyle = "#" + sha1(node)[0:6];
+            ctx.lineWidth = 5
+        ctx.strokeStyle = "#" + sha1(node_this)[0:6]
         if angle_this == angle_prev:
             # there is only a single node, draw a full circle
             ctx.arc(CANVAS_SIZE/2, CANVAS_SIZE/2, CANVAS_SIZE/2*0.75, 0, 2*pi)
@@ -159,18 +275,33 @@ def redraw_visualization():
             ctx.arc(CANVAS_SIZE/2, CANVAS_SIZE/2, CANVAS_SIZE/2*0.75, angle_prev, angle_this)
         ctx.stroke()
         angle_prev = angle_this
+        node_prev = node_this
+    #debug_marker(ctx,0)
+    infinitesimal = 0.005*pi
+    #log("Drawing local keys.")
+    for key,val in local_kv_store.items():
+        #log(sha1(key))
+        angle = hash_to_angle(sha1(key))
+        color = sha1(key)[-6:]
+        ctx.beginPath()
+        ctx.lineWidth = 10
+        ctx.strokeStyle = "#" + color
+        ctx.arc(CANVAS_SIZE/2, CANVAS_SIZE/2, CANVAS_SIZE/2*0.82, angle-infinitesimal, angle+infinitesimal)
+        ctx.stroke()
 
 def python_init():
     Bugout = window.bugout_class
     b = Bugout("bugout-dynamo", {"timeout": TIMEOUT})
     window.b = b
     document.getElementById("ping").bind("click", ping_button)
+    document.getElementById("getput").bind("click", getput_button)
     b.on("seen", seen)
     b.on("timeout", timeout)
     b.on("left", left)
     b.on("connections", connections)
     b.on("rpc", rpc)
     b.register("ping", ping)
+    b.register("store", store)
     b.heartbeat(HEARTBEAT)
 
     log("Bugout Dynamo concept")
@@ -202,13 +333,14 @@ function js_main() {
   window.bugout_class = Bugout
   window.call_js_function = call_js_function
   // Perform Brython initialization
-  brython()
+  brython(1)
 }
 </script>
 <style>
   body { background-color: #fff; }
   pre { width:30em; padding:3em; white-space: pre-wrap; word-wrap: break-word; line-height: 1em; }
-  #log { background-color:#333; color: #eee; }
-  #peers { background-color:#eee; color:#222; }
+  #log     { background-color:#333; color: #eee; }
+  #peers   { background-color:#eee; color:#222; }
+  #kvstore { background-color:#cce; color:#222; }
 </style>
 </html>
