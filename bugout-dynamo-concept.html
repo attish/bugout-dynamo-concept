@@ -548,7 +548,7 @@ def redraw_visualization():
             ctx.lineWidth = 10
         else:
             ctx.lineWidth = 5
-        ctx.strokeStyle = "#" + sha1(node_this)[0:6]
+        ctx.strokeStyle = "#" + sha1(vnode)[0:6]
         if angle_this == angle_prev:
             # there is only a single node, draw a full circle
             ctx.arc(CANVAS_SIZE/2, CANVAS_SIZE/2, CANVAS_SIZE/2*0.75, 0, 2*pi)
