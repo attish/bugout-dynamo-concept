@@ -13,9 +13,16 @@
   <h1>Bugout Dynamo concept</h1>
   <p><strong>How to use?</strong>&nbsp;You can add a key-value pair by entering the key, the value and pressing the "Get/Put" button. To query the value assigned to a certain key, enter the key, leave the vaule box empty, then press the "Get/Put" button.</p>
   Key:&nbsp;<input id="key"></input>&nbsp;Value:&nbsp;<input id="value">&nbsp;<button id="getput">Get/Put</button>
-  &nbsp;<button id="test">Test</button>
+  <br><button id="test">Fill with test data</button>&nbsp;(uses a limited data set of 16 pairs)
+  <br><button id="test_hard">HARD TEST</button>&nbsp;<strong>(will almost certainly crash for now)</strong>
 
   <h2>Visualization:</h2>
+  <p>The circle represents the keyspace. Segments are marked by colors. The
+     thick segments are stored in this instance, the thin segments are stored
+     elsewhere. Locally stored key-value pairs are displayed as thins lines around
+     the circle. (Since there is no replication, you should see these lines over
+     thick segments, unless a node disconnects.)
+  </p>
     <canvas id="visual" width="300" height="300" style="border-color:#000;border-style:none;border-width:1px;margin-left:5em;"></canvas>
   <table>
     <tr>
@@ -24,7 +31,7 @@
         <input id="address"></input><button id="ping">Ping</button>
       </td>
       <td>
-        <h2>Key-value store:</h2>
+        <h2>Local store:</h2>
       </td>
     </tr>
     <tr>
@@ -156,6 +163,25 @@ def put(key, val):
         )
 
 def test_button(e):
+    put("China", "Peking")
+    put("India", "New Delhi")
+    put("United States", "Washington")
+    put("Indonesia", "Jakarta")
+    put("Pakistan", "Islamabad")
+    put("Brazil", "Brasília")
+    put("Nigeria", "Abuja")
+    put("Bangladesh", "Dhaka")
+    put("Russia", "Moscow")
+    put("Mexico", "Ciudad de Mexico")
+    put("Japan", "Tokyo")
+    put("Philippines", "Manila")
+    put("Congo", "Brazzaville")
+    put("Egypt", "Cairo")
+    put("Ethiopia", "Addis Abeba")
+    put("Vietnam", "Hanoi")
+
+
+def test_hard_button(e):
     put("Afghanistan", "Kabul")
     put("Albania", "Tirana")
     put("Algeria", "Alger")
@@ -287,7 +313,7 @@ def test_button(e):
     put("Mauritania", "Nouakchott")
     put("Mauritius", "Port-Louis")
     put("Mayotte", "Mamoutzou")
-    put("Mexico", "Ciudad de M")
+    put("Mexico", "Ciudad de Mexico")
     put("Micronesia, Federated States of", "Palikir")
     put("Moldova", "Chisinau")
     put("Monaco", "Monaco-Ville")
@@ -329,7 +355,7 @@ def test_button(e):
     put("Qatar", "Doha")
     put("Reunion", "Saint-Denis")
     put("Romania", "Bucuresti")
-    put("Russian Federation", "Moscow")
+    put("Russia", "Moscow")
     put("Rwanda", "Kigali")
     put("Saint Helena", "Jamestown")
     put("Saint Kitts and Nevis", "Basseterre")
@@ -673,6 +699,7 @@ def python_init():
     document.getElementById("ping").bind("click", ping_button)
     document.getElementById("getput").bind("click", getput_button)
     document.getElementById("test").bind("click", test_button)
+    document.getElementById("test_hard").bind("click", test_hard_button)
     b.on("seen", seen)
     b.on("timeout", timeout)
     b.on("left", left)
