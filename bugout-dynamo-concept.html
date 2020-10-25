@@ -4,7 +4,8 @@
   <meta charset="utf-8">
   <meta content="width=device-width, initial-scale=1" name="viewport">
   <title>Bugout Dynamo concept</title>
-  <script src="https://chr15m.github.io/bugout/bugout.min.js"></script>
+  <!--script src="https://chr15m.github.io/bugout/bugout.min.js"></script-->
+  <script src="bugout-nohardwired-servers.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/brython@3.8.10/brython.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.0.0/crypto-js.min.js"></script>
 </head>
@@ -522,7 +523,7 @@ def shuffle(l):
     # brython_stdlib.js just for this one function.
     
     timestamp = window.Date()
-    l.sort(key=lambda x: sha1(str(timestamp) + x))
+    l.sort(key=lambda x: sha1(str(timestamp) + str(x)))
     return l
 
 def hash_to_angle(hash):
@@ -604,9 +605,64 @@ def python_init():
             "wss://tracker.btorrent.xyz",
         ]
     shuffle(trackerlist)
-    log("Connecting to " + str(trackerlist[0]))
+
+    # For STUN/TURN servers, the list is at:
+    # https://gist.github.com/yetithefoot/7592580
+    # As of 2020-10-25, the ones commented out did not work
+    # To test STUN servers:
+    # https://webrtc.github.io/samples/src/content/peerconnection/trickle-ice/
+
+    iceservers = [
+            #{"urls":"stun:stun01.sipphone.com"},
+            {"urls":"stun:stun.ekiga.net"},
+            #{"urls":"stun:stun.fwdnet.net"},
+            #{"urls":"stun:stun.ideasip.com"},
+            #{"urls":"stun:stun.iptel.org"},
+            #{"urls":"stun:stun.rixtelecom.se"},
+            {"urls":"stun:stun.schlund.de"},
+            {"urls":"stun:stun.l.google.com:19302"},
+            {"urls":"stun:stun1.l.google.com:19302"},
+            {"urls":"stun:stun2.l.google.com:19302"},
+            {"urls":"stun:stun3.l.google.com:19302"},
+            {"urls":"stun:stun4.l.google.com:19302"},
+            #{"urls":"stun:stunserver.org"},
+            #{"urls":"stun:stun.softjoys.com"},
+            {"urls":"stun:stun.voiparound.com"},
+            {"urls":"stun:stun.voipbuster.com"},
+            {"urls":"stun:stun.voipstunt.com"},
+            #{"urls":"stun:stun.voxgratia.org"},
+            {"urls":"stun:stun.xten.com"},
+            {
+                "urls": "turn:numb.viagenie.ca",
+                "credential": "muazkh",
+                "username": "webrtc@live.com"
+            },
+            #{
+            #    "urls": "turn:192.158.29.39:3478?transport=udp",
+            #    "credential": "JZEOEt2V3Qb0y27GRntt2u2PAYA=",
+            #    "username": "28224511:1379330808"
+            #},
+            #{
+            #    "urls": "turn:192.158.29.39:3478?transport=tcp",
+            #    "credential": "JZEOEt2V3Qb0y27GRntt2u2PAYA=",
+            #    "username": "28224511:1379330808"
+            #}
+        ]
+    shuffle(iceservers)
+    #log(str(iceservers))
+
+    log("Connecting to " + str(trackerlist[0]) + " via " + str(iceservers[0]["urls"]))
     dht = True
-    b = Bugout("bugout-dynamo", {"timeout": TIMEOUT, "wtOpts":{"tracker":trackerlist,"dht":dht}})
+    b = Bugout("bugout-dynamo", {
+            "timeout": TIMEOUT,
+            "announce":trackerlist,
+            "iceServers":iceservers,
+            "wtOpts":{
+                    #"tracker":trackerlist,
+                    "dht":dht,
+                    #"rtcConfig":{"iceServers":iceservers}
+                }
+        })
 
     # Let's try to go seedless via DHT! -- this does not seem to work, see
     # https://github.com/chr15m/bugout/issues/33
