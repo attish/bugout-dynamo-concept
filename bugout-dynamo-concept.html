@@ -10,6 +10,7 @@
 </head>
 <body onLoad="js_main()">
   <h1>Bugout Dynamo concept</h1>
+  <p><strong>How to use?</strong>&nbsp;You can add a key-value pair by entering the key, the value and pressing the "Get/Put" button. To query the value assigned to a certain key, enter the key, leave the vaule box empty, then press the "Get/Put" button.</p>
   Key:&nbsp;<input id="key"></input>&nbsp;Value:&nbsp;<input id="value">&nbsp;<button id="getput">Get/Put</button>
   &nbsp;<button id="test">Test</button>
 
@@ -496,8 +497,8 @@ def store(addr, args, cb):
 def connections(c):
     global connected
     if c == 0 and connected == False:
-      connected = True
-      log("Connected to the network.")
+        connected = True
+        log("Connected to the network.")
     log("connections: " + str(c))
 
 def message(addr, msg):
@@ -515,6 +516,14 @@ def sha1(msg):
     sha1_obj = CryptoJS.SHA1(msg)
     sha1_str = sha1_obj.toString(CryptoJS.enc.Hex)
     return sha1_str
+
+def shuffle(l):
+    # Similar to random.shuffle(). Added to avoid having to include the whole
+    # brython_stdlib.js just for this one function.
+    
+    timestamp = window.Date()
+    l.sort(key=lambda x: sha1(str(timestamp) + x))
+    return l
 
 def hash_to_angle(hash):
     return int(hash[0:4], 16)*2*pi/65536
@@ -571,9 +580,40 @@ def redraw_visualization():
         ctx.stroke()
 
 def python_init():
+    log("Bugout Dynamo concept")
+    log("")
+
     Bugout = window.bugout_class
-    b = Bugout("bugout-dynamo", {"timeout": TIMEOUT})
+    # Use a wider selection of WebTorrent trackers to decrease relying on any
+    # particular service. There seems to be a list of known trackers at:
+    # https://github.com/ngosang/trackerslist/blob/master/trackers_all_ws.txt
+    # Also, randomize the list to test cooperation between peers on different
+    # trackers.
+
+    trackerlist = [
+            # this one seems to be down as of 2020-10-25
+            # "wss://video.blender.org:443/tracker/socket",
+            "wss://tube.privacytools.io:443/tracker/socket",
+            "wss://tracker.sloppyta.co:443/announce",
+            "wss://tracker.lab.vvc.niif.hu:443/announce",
+            "wss://tracker.files.fm:7073/announce",
+            "wss://peertube.cpy.re:443/tracker/socket",
+            "wss://open.tube:443/tracker/socket",
+            "wss://hub.bugout.link:443/announce",
+            "wss://tracker.openwebtorrent.com",
+            "wss://tracker.btorrent.xyz",
+        ]
+    shuffle(trackerlist)
+    log("Connecting to " + str(trackerlist[0]))
+    dht = True
+    b = Bugout("bugout-dynamo", {"timeout": TIMEOUT, "wtOpts":{"tracker":trackerlist,"dht":dht}})
+
+    # Let's try to go seedless via DHT! -- this does not seem to work, see
+    # https://github.com/chr15m/bugout/issues/33
+    #b = Bugout("bugout-dynamo", {"timeout": TIMEOUT, "wtOpts":{"tracker":False,"dht":True}})
+
     window.b = b
+
     document.getElementById("ping").bind("click", ping_button)
     document.getElementById("getput").bind("click", getput_button)
     document.getElementById("test").bind("click", test_button)
@@ -587,8 +627,6 @@ def python_init():
     b.register("retrieve", retrieve)
     b.heartbeat(HEARTBEAT)
 
-    log("Bugout Dynamo concept")
-    log("")
     log("My seed is: " + b.seed)
     log("My address is: " + b.address())
 
